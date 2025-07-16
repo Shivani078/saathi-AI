@@ -1,15 +1,153 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Client, Databases, ID, Query } from 'appwrite';
+import { getAuth } from 'firebase/auth'; // Import Firebase Auth
 import { Search, Filter, TrendingDown, Package, Calendar, AlertCircle, CheckCircle, XCircle, Clock, BarChart3, PieChart, Lightbulb } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
 
+
+const client = new Client()
+    .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT)
+    .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID);
+
+const databases = new Databases(client);
+const DB_ID = import.meta.env.VITE_APPWRITE_DB_ID;
+const COLLECTION_ID = import.meta.env.VITE_APPWRITE_ORDERSUM_COLLECTION_ID; // Use env variable
+
+function getCurrentWeek() {
+    const curr = new Date();
+    const first = curr.getDate() - curr.getDay();
+    const last = first + 6;
+    const firstday = new Date(curr.setDate(first)).toLocaleDateString();
+    const lastday = new Date(curr.setDate(last)).toLocaleDateString();
+    return `${firstday} - ${lastday}`;
+}
+
 const OrdersReturnsPage = () => {
+    // --- Firebase Auth User ID ---
+    const [firebaseUserId, setFirebaseUserId] = useState('');
+    useEffect(() => {
+        const auth = getAuth();
+        const unsubscribe = auth.onAuthStateChanged(user => {
+            setFirebaseUserId(user ? user.uid : '');
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // --- Form State ---
+    const [form, setForm] = useState({
+        sellerId: '',
+        orders: '',
+        returnRate: '',
+        userId: '',
+        week: getCurrentWeek(),
+    });
+
+    // --- Order Input Mode State ---
+    const [orderInputMode, setOrderInputMode] = useState('manual');
+    const [orderRows, setOrderRows] = useState([
+        { product: '', sold: '', returned: '', amount: '' }
+    ]);
+
+    const [entries, setEntries] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // --- Fetch Entries from Appwrite ---
+    const fetchEntries = async () => {
+        setLoading(true);
+        try {
+            if (!firebaseUserId) {
+                setEntries([]); // No user, no entries
+            } else {
+                const res = await databases.listDocuments(DB_ID, COLLECTION_ID, [
+                    Query.equal('userId', [firebaseUserId]),
+                    Query.orderDesc('$createdAt') // <-- Show newest first
+                ]);
+                setEntries(res.documents);
+            }
+        } catch (err) {
+
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchEntries();
+    }, [firebaseUserId]);
+
+    // --- Handle Form ---
+    const handleChange = (e) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
+    };
+
+    // --- Handle Order Row Change ---
+    const handleOrderRowChange = (idx, e) => {
+        const updatedRows = orderRows.map((row, i) =>
+            i === idx ? { ...row, [e.target.name]: e.target.value } : row
+        );
+        setOrderRows(updatedRows);
+    };
+
+    const addOrderRow = () => {
+        setOrderRows([...orderRows, { product: '', sold: '', returned: '', amount: '' }]);
+    };
+
+    // --- Handle Order Input Mode Change ---
+    const handleOrderInputModeChange = (e) => {
+        setOrderInputMode(e.target.value);
+    };
+
+    // --- Handle Form Submit ---
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        let orders = '';
+        let returnRate = '';
+        // Use orderRows for both manual and CSV modes
+        if (orderInputMode === 'manual' || orderInputMode === 'csv') {
+            const totalSold = orderRows.reduce((sum, row) => sum + Number(row.sold || 0), 0);
+            const totalReturned = orderRows.reduce((sum, row) => sum + Number(row.returned || 0), 0);
+            orders = String(totalSold);
+            returnRate = totalSold ? ((totalReturned / totalSold) * 100).toFixed(2) : 0;
+        }
+        try {
+            await databases.createDocument(DB_ID, COLLECTION_ID, ID.unique(), {
+                ...form,
+                orders: orders || String(form.orders),
+                returnRate: returnRate !== '' ? parseFloat(returnRate) : Number(form.returnRate),
+                userId: firebaseUserId || form.userId,
+                week: getCurrentWeek(),
+                // orderRows, // REMOVE this line
+            });
+            await fetchEntries();
+            setForm({ ...form, sellerId: '', orders: '', returnRate: '', userId: '', week: getCurrentWeek() });
+            setOrderRows([{ product: '', sold: '', returned: '', amount: '' }]);
+        } catch (err) {
+            console.error('Appwrite error:', err);
+            alert('Error saving data');
+        }
+    };
+
+    // --- Totals ---
+    const totalOrders = entries.reduce((sum, entry) => {
+        const val = Number(entry.orders);
+        return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+
+    const avgReturnRate = entries.length
+        ? (
+            entries.reduce((sum, entry) => {
+                const val = Number(entry.returnRate);
+                return sum + (isNaN(val) ? 0 : val);
+            }, 0) / entries.length
+        ).toFixed(2)
+        : 0;
+
+    // --- Existing Demo Data and Filters ---
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [selectedReason, setSelectedReason] = useState('all');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
 
-    // Sample data
     const ordersData = [
         { id: 'ORD-001', product: 'Wireless Bluetooth Headphones', category: 'Electronics', returnReason: 'Poor Sound Quality', status: 'returned', date: '2024-07-01', customerName: 'John Doe', amount: 89.99 },
         { id: 'ORD-002', product: 'Cotton Summer Dress', category: 'Clothing', returnReason: 'Wrong Size', status: 'returned', date: '2024-07-02', customerName: 'Jane Smith', amount: 59.99 },
@@ -77,54 +215,284 @@ const OrdersReturnsPage = () => {
 
     const returnRate = ((filteredOrders.length / (filteredOrders.length + 100)) * 100).toFixed(1);
 
+
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Orders & Returns</h1>
-                    <p className="text-gray-600">Track and manage your order returns with AI-powered insights</p>
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Orders & Returns</h1>
+
                 </div>
 
-                {/* Stats Overview */}
+                {/* Stats Overview - moved to top */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600">Total Returns</p>
-                                <p className="text-2xl font-bold text-gray-900">{filteredOrders.length}</p>
-                            </div>
-                            <Package className="w-8 h-8 text-blue-500" />
+                    <div className="bg-white p-6 rounded-lg shadow-sm border flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-600">Total Returns</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                {entries.reduce((sum, entry) => {
+                                    // If you store returns count per entry, use that field; else, count entries
+                                    // Example: sum + Number(entry.returns || 0)
+                                    return sum + 1;
+                                }, 0)}
+                            </p>
                         </div>
+                        <Package className="w-8 h-8 text-blue-500" />
                     </div>
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600">Return Rate</p>
-                                <p className="text-2xl font-bold text-gray-900">{returnRate}%</p>
-                            </div>
-                            <TrendingDown className="w-8 h-8 text-red-500" />
+                    <div className="bg-white p-6 rounded-lg shadow-sm border flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-600">Return Rate</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                                {entries.length
+                                    ? (
+                                        entries.reduce((sum, entry) => {
+                                            const val = Number(entry.returnRate);
+                                            return sum + (isNaN(val) ? 0 : val);
+                                        }, 0) / entries.length
+                                    ).toFixed(1)
+                                    : 0
+                                }%
+                            </p>
                         </div>
+                        <TrendingDown className="w-8 h-8 text-red-500" />
                     </div>
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600">Processing</p>
-                                <p className="text-2xl font-bold text-gray-900">{filteredOrders.filter(o => o.status === 'processing').length}</p>
-                            </div>
-                            <Clock className="w-8 h-8 text-yellow-500" />
+                    <div className="bg-white p-6 rounded-lg shadow-sm border flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-600">Processing</p>
+                            <p className="text-2xl font-bold text-gray-900">{filteredOrders.filter(o => o.status === 'processing').length}</p>
                         </div>
+                        <Clock className="w-8 h-8 text-yellow-500" />
                     </div>
-                    <div className="bg-white p-6 rounded-lg shadow-sm border">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-600">Refunded</p>
-                                <p className="text-2xl font-bold text-gray-900">${filteredOrders.filter(o => o.status === 'refunded').reduce((sum, o) => sum + o.amount, 0).toFixed(2)}</p>
-                            </div>
-                            <XCircle className="w-8 h-8 text-blue-500" />
+                    <div className="bg-white p-6 rounded-lg shadow-sm border flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-600">Refunded</p>
+                            <p className="text-2xl font-bold text-gray-900">${filteredOrders.filter(o => o.status === 'refunded').reduce((sum, o) => sum + o.amount, 0).toFixed(2)}</p>
                         </div>
+                        <XCircle className="w-8 h-8 text-blue-500" />
                     </div>
                 </div>
+
+                {/* --- Orders/Returns Form Section --- */}
+                <div className="bg-white p-6 rounded-lg shadow mb-8">
+                    <h2 className="text-xl font-bold mb-4">Add Seller Order/Return Details</h2>
+                    <form onSubmit={handleSubmit} className="mb-4">
+                        <div className="mb-2">
+                            <label className="block font-medium mb-1">Seller ID</label>
+                            <input
+                                type="text"
+                                name="sellerId"
+                                placeholder="Write anything for now..."
+                                value={form.sellerId}
+                                onChange={handleChange}
+                                required
+                                className="border p-2 rounded w-full"
+                            />
+                        </div>
+                        <div className="mb-2">
+                            <label className="block font-medium mb-1">How to add orders?</label>
+                            <div className="flex gap-4">
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="orderInputMode"
+                                        value="manual"
+                                        checked={orderInputMode === 'manual'}
+                                        onChange={handleOrderInputModeChange}
+                                    /> Manual
+                                </label>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="orderInputMode"
+                                        value="csv"
+                                        checked={orderInputMode === 'csv'}
+                                        onChange={handleOrderInputModeChange}
+                                    /> Upload CSV
+                                </label>
+                                <label>
+                                    <input
+                                        type="radio"
+                                        name="orderInputMode"
+                                        value="screenshot"
+                                        checked={orderInputMode === 'screenshot'}
+                                        onChange={handleOrderInputModeChange}
+                                    /> Upload Screenshot
+                                </label>
+                            </div>
+                        </div>
+                        {orderInputMode === 'manual' && (
+                            <div className="mb-2">
+                                <label className="block font-medium mb-1">Orders</label>
+                                <div className="flex gap-2 mb-1">
+
+                                </div>
+                                {orderRows.map((row, idx) => (
+                                    <div key={idx} className="flex gap-2 mb-1">
+                                        <input
+                                            type="text"
+                                            name="product"
+                                            placeholder="Product"
+                                            value={row.product}
+                                            onChange={e => handleOrderRowChange(idx, e)}
+                                            className="border p-1 rounded"
+                                        />
+                                        <input
+                                            type="number"
+                                            name="sold"
+                                            placeholder="Sold"
+                                            value={row.sold}
+                                            onChange={e => handleOrderRowChange(idx, e)}
+                                            className="border p-1 rounded"
+                                        />
+                                        <input
+                                            type="number"
+                                            name="returned"
+                                            placeholder="Returned"
+                                            value={row.returned}
+                                            onChange={e => handleOrderRowChange(idx, e)}
+                                            className="border p-1 rounded"
+                                        />
+                                        <input
+                                            type="number"
+                                            name="amount"
+                                            placeholder="Amount"
+                                            value={row.amount}
+                                            onChange={e => handleOrderRowChange(idx, e)}
+                                            className="border p-1 rounded"
+                                        />
+                                    </div>
+                                ))}
+                                <button type="button" className="bg-blue-600 text-white rounded px-2 py-1 mt-1" onClick={addOrderRow}>
+                                    Add Order Row
+                                </button>
+                            </div>
+                        )}
+                        {orderInputMode === 'csv' && (
+                            <div className="mb-2">
+                                <label className="block font-medium mb-1">Upload CSV</label>
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+                                        const text = await file.text();
+                                        // Parse CSV: product,sold,returned,amount
+                                        const rows = text.trim().split('\n').slice(1);
+                                        const parsedRows = rows.map(row => {
+                                            const [product, sold, returned, amount] = row.split(',').map(cell => cell.trim());
+                                            return {
+                                                product,
+                                                sold: sold ? Number(sold) : '',
+                                                returned: returned ? Number(returned) : '',
+                                                amount: amount ? Number(amount) : ''
+                                            };
+                                        });
+                                        setOrderRows(parsedRows);
+                                    }}
+                                    className="border p-2 rounded w-full"
+                                />
+                                <div className="mt-2 text-xs text-gray-500">
+                                    CSV columns: <b>product,sold,returned,amount</b>
+                                </div>
+                            </div>
+                        )}
+                        {orderInputMode === 'screenshot' && (
+                            <div className="mb-2">
+                                <label className="block font-medium mb-1">Upload Screenshot (image)</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                        const file = e.target.files[0];
+                                        if (!file) return;
+
+                                        setOrderRows([{ product: file.name, sold: '', returned: '', amount: '' }]);
+
+                                    }}
+                                    className="border p-2 rounded w-full"
+                                />
+                                <div className="mt-2 text-xs text-gray-500">
+                                    Upload an order screenshot (image).<br />
+                                    <span className="text-yellow-700"></span>
+                                </div>
+                            </div>
+                        )}
+                        <button type="submit" className="bg-yellow-700 text-white rounded p-2 w-full mt-2">Submit</button>
+                    </form>
+                    {/* Quick Stats Card at Top */}
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-white rounded-2xl shadow border flex flex-col items-center justify-center w-64 h-32 mx-2">
+                            <div className="flex items-center gap-3 mb-1">
+                                <Package className="w-7 h-7 text-blue-500" />
+                                <span className="text-lg font-semibold text-gray-700">Total Orders</span>
+                            </div>
+                            <span className="text-3xl font-extrabold text-gray-900">{totalOrders}</span>
+                            <span className="text-sm text-gray-500 mt-1">Avg Return: <span className="text-yellow-700 font-bold">{avgReturnRate}%</span></span>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white rounded-xl shadow-sm border border-gray-100">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Order No.</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Seller ID</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Week</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Orders</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Return Rate</th>
+                                    {/* Removed Amount column */}
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-100">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td>
+                                    </tr>
+                                ) : entries.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="text-center py-8 text-gray-400">No data</td>
+                                    </tr>
+                                ) : (
+                                    entries
+                                        .slice()
+                                        .sort((a, b) => (b.orderNumber || 0) - (a.orderNumber || 0))
+                                        .map((entry, idx) => (
+                                            <tr key={entry.$id} className="hover:bg-gray-50 transition">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center">
+                                                        <Package className="w-5 h-5 text-gray-400 mr-2" />
+                                                        <span className="text-sm font-bold text-gray-900 font-mono">
+                                                            ORD-{entry.orderNumber ? String(entry.orderNumber).padStart(3, '0') : String(idx + 1).padStart(3, '0')}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 font-semibold text-gray-900">{entry.sellerId}</td>
+                                                <td className="px-6 py-4 text-gray-700">
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <Calendar className="w-4 h-4 text-gray-400" />
+                                                        <span className="font-mono bg-gray-100 rounded px-2 py-1 text-xs">
+                                                            {formatWeek(entry.week)}
+                                                        </span>
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-blue-700 font-bold">{Number(entry.orders) || 0}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className="inline-block px-2 py-1 rounded-full bg-yellow-50 text-yellow-700 font-semibold text-xs">
+                                                        {entry.returnRate}%
+                                                    </span>
+                                                </td>
+                                                {/* Removed Amount cell */}
+                                            </tr>
+                                        ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {/* --- End Orders/Returns Form Section --- */}
+
+
 
                 {/* AI Suggestion Banner */}
                 <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-6 rounded-lg mb-8 shadow-lg">
@@ -183,145 +551,29 @@ const OrdersReturnsPage = () => {
                     </div>
                 </div>
 
-                {/* Filters and Search */}
-                <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
-                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                        <div className="flex items-center gap-4 w-full md:w-auto">
-                            <div className="relative flex-1 md:w-80">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                <input
-                                    type="text"
-                                    placeholder="Search by Order ID, Product, or Customer..."
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                            <button
-                                onClick={() => setShowFilters(!showFilters)}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                            >
-                                <Filter className="w-4 h-4" />
-                                Filters
-                            </button>
-                        </div>
-                    </div>
 
-                    {showFilters && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                                <select
-                                    value={selectedCategory}
-                                    onChange={(e) => setSelectedCategory(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="all">All Categories</option>
-                                    {categories.map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Return Reason</label>
-                                <select
-                                    value={selectedReason}
-                                    onChange={(e) => setSelectedReason(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="all">All Reasons</option>
-                                    {returnReasons.map(reason => (
-                                        <option key={reason} value={reason}>{reason}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                                <select
-                                    value={selectedStatus}
-                                    onChange={(e) => setSelectedStatus(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    <option value="all">All Statuses</option>
-                                    {statuses.map(status => (
-                                        <option key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    )}
-                </div>
 
-                {/* Orders Table */}
-                <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Return Reason</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredOrders.map((order) => (
-                                    <tr key={order.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <Package className="w-4 h-4 text-gray-400 mr-2" />
-                                                <span className="text-sm font-medium text-gray-900">{order.id}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="text-sm font-medium text-gray-900">{order.product}</div>
-                                            <div className="text-sm text-gray-500">{order.category}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{order.customerName}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center">
-                                                <AlertCircle className="w-4 h-4 text-orange-500 mr-2" />
-                                                <span className="text-sm text-gray-900">{order.returnReason}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                {getStatusIcon(order.status)}
-                                                <span className={`ml-2 ${getStatusBadge(order.status)}`}>
-                                                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <Calendar className="w-4 h-4 text-gray-400 mr-2" />
-                                                <span className="text-sm text-gray-900">{order.date}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            ${order.amount.toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
-                {filteredOrders.length === 0 && (
-                    <div className="text-center py-12">
-                        <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">No orders found matching your criteria</p>
-                    </div>
-                )}
+
+
             </div>
         </div>
     );
 };
+
+function formatWeek(weekStr) {
+    // Try to format "YYYY-MM-DD - YYYY-MM-DD" as "Jul 14 - Jul 20, 2025"
+    if (!weekStr) return '';
+    const [start, end] = weekStr.split(' - ');
+    try {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        const options = { month: 'short', day: 'numeric' };
+        const year = endDate.getFullYear();
+        return `${startDate.toLocaleDateString(undefined, options)} - ${endDate.toLocaleDateString(undefined, options)}, ${year}`;
+    } catch {
+        return weekStr;
+    }
+}
 
 export default OrdersReturnsPage;
