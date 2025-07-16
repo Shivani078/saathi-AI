@@ -203,13 +203,13 @@ const ProductListingGenerator = () => {
     );
 
     return (
-        <div className="min-h-screen bg-[#1e293b] p-0">
-            <div className="max-w-6xl mx-auto py-8">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+            <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2">
+                    <h1 className="text-4xl font-bold text-gray-800 mb-2">
                         🏷️ Product Listing Generator
                     </h1>
-                    <p className="text-gray-300 text-lg">
+                    <p className="text-gray-600 text-lg">
                         Create SEO-optimized product listings with AI-powered content generation
                     </p>
                 </div>

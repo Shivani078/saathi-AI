@@ -8,7 +8,9 @@ import {
     Globe,
     Bot,
     XCircle,
-    Menu
+    Menu,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react';
 import { databases, ID } from "../appwrite/client";
 import { Query } from "appwrite";
@@ -23,6 +25,7 @@ const AICopilotChat = ({ user, getUserDisplayName }) => {
     const [chatInput, setChatInput] = useState('');
     const [currentSessionId, setCurrentSessionId] = useState(null);
     const [language, setLanguage] = useState('english');
+    const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
     const [chatSessions, setChatSessions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
@@ -32,6 +35,7 @@ const AICopilotChat = ({ user, getUserDisplayName }) => {
 
     const fileInputRef = useRef(null);
     const recognitionRef = useRef(null);
+    const langDropdownRef = useRef(null);
     
     const chatSuggestions = [
         "What to stock this month?",
@@ -139,6 +143,16 @@ const AICopilotChat = ({ user, getUserDisplayName }) => {
             fetchChatHistory(user);
         }
     }, [user]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (langDropdownRef.current && !langDropdownRef.current.contains(event.target)) {
+                setIsLangDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // --- Speech Recognition Logic ---
     useEffect(() => {
@@ -314,107 +328,191 @@ const AICopilotChat = ({ user, getUserDisplayName }) => {
         setCurrentSessionId(sessionId);
     };
 
+    const handleSuggestionClick = (suggestion) => {
+        setChatInput(suggestion);
+    };
+
     return (
-        <div className="flex h-full">
-            <div className={`bg-[#0f172a] border-r border-gray-700 flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${isSidebarOpen ? 'w-80 p-4' : 'w-0'}`}>
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">Chat History</h3>
-                    <button onClick={handleNewChat} className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors text-sm" title="Start New Chat">
-                        <PlusCircle className="w-4 h-4" /> New Chat
-                    </button>
-                </div>
-                <div className="space-y-2 overflow-y-auto flex-1">
-                    {chatSessions.length > 0 ? (
-                        chatSessions.map((chat) => (
-                            <div key={chat.id} className="p-3 rounded-lg border border-gray-700 hover:bg-[#1e293b] cursor-pointer bg-[#1e293b] text-gray-100" onClick={() => handleSessionClick(chat.id)}>
-                                <h4 className="font-medium text-gray-100 text-sm truncate">{chat.preview}</h4>
-                                <p className="text-xs text-gray-400 mt-1">{chat.time}</p>
+        <div className="flex h-screen font-sans bg-gray-100 text-gray-800">
+            {/* Sidebar for Chat History */}
+            <div className={`
+                flex-shrink-0 bg-white border-r border-gray-200 
+                transition-all duration-300 ease-in-out
+                ${isSidebarOpen ? 'w-72' : 'w-0'}
+            `}>
+                <div className="w-72 h-full flex flex-col overflow-hidden">
+                    <div className="p-4 flex justify-between items-center border-b border-gray-200 flex-shrink-0">
+                        <h2 className="text-xl font-bold text-gray-800">Chat History</h2>
+                        <button
+                            onClick={handleNewChat}
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                            title="New Chat"
+                        >
+                            <PlusCircle className="w-6 h-6" />
+                        </button>
+                    </div>
+                    <div className="overflow-y-auto flex-grow">
+                        {chatSessions.length > 0 ? (
+                            chatSessions.map((session) => (
+                                <div
+                                    key={session.id}
+                                    onClick={() => handleSessionClick(session.id)}
+                                    className={`
+                                        p-4 cursor-pointer border-l-4
+                                        ${currentSessionId === session.id ? 'border-indigo-500 bg-gray-100' : 'border-transparent hover:bg-gray-50'}
+                                    `}
+                                >
+                                    <div className="font-semibold text-sm truncate">{session.preview}</div>
+                                    <div className="text-xs text-gray-500 mt-1">{session.time}</div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-sm text-gray-500">
+                                No past conversations.
                             </div>
-                        ))
-                    ) : (
-                        <div className="text-center text-gray-500 text-sm py-8">No chat history found.</div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col bg-gray-900">
-                <div className="p-3 border-b border-gray-700 flex items-center gap-4">
-                     <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 text-gray-400 rounded-md hover:bg-gray-800 hover:text-white">
-                         <Menu className="w-6 h-6" />
-                     </button>
-                     <h3 className="text-lg font-semibold text-white">AI Copilot</h3>
-                </div>
-                <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                    {chatMessages.map((message) => (
-                        <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.type === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-white'}`}>
-                                {message.image && <img src={message.image} alt="User upload" className="rounded-lg mb-2 max-h-48 w-full object-cover" />}
-                                <p className="text-sm whitespace-pre-line">{message.content}</p>
-                                <span className="text-xs opacity-75 mt-1 block">{message.timestamp}</span>
+            {/* Main Chat Area */}
+            <div className="flex-1 flex flex-col bg-gray-50 min-w-0">
+                <header className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                            title="Toggle Sidebar"
+                        >
+                            <Menu className="w-6 h-6" />
+                        </button>
+                        <h1 className="text-xl font-bold text-gray-800">AI Copilot Chat</h1>
+                    </div>
+                    <div className="relative" ref={langDropdownRef}>
+                         <button
+                            onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+                            className="flex items-center gap-2 bg-gray-100 border border-gray-300 text-gray-800 p-2 pl-4 pr-3 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <Globe className="w-5 h-5 text-gray-500" />
+                            <span className="font-medium">{language.charAt(0).toUpperCase() + language.slice(1)}</span>
+                            {isLangDropdownOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                        {isLangDropdownOpen && (
+                            <ul className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                                <li>
+                                    <a onClick={() => { setLanguage('english'); setIsLangDropdownOpen(false); }}
+                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">English</a>
+                                </li>
+                                <li>
+                                    <a onClick={() => { setLanguage('hindi'); setIsLangDropdownOpen(false); }}
+                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Hindi</a>
+                                </li>
+                                <li>
+                                    <a onClick={() => { setLanguage('hinglish'); setIsLangDropdownOpen(false); }}
+                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Hinglish</a>
+                                </li>
+                            </ul>
+                        )}
+                    </div>
+                </header>
+                
+                {/* Chat Messages */}
+                 <div id="chat-container" className="flex-1 p-6 overflow-y-auto space-y-6">
+                    {chatMessages.map((msg, index) => (
+                        <div key={msg.id || index} className={`flex items-start gap-4 ${msg.type === 'user' ? 'justify-end' : ''}`}>
+                             {msg.type === 'bot' && (
+                                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white flex-shrink-0">
+                                    <Bot size={24} />
+                                </div>
+                            )}
+                            <div className={`max-w-xl p-4 rounded-xl ${msg.type === 'user' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-800 shadow-sm'}`}>
+                                {msg.image && <img src={msg.image} alt="uploaded content" className="rounded-lg mb-2 max-w-xs"/>}
+                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                                <div className="text-xs mt-2 opacity-70 text-right">{msg.timestamp}</div>
                             </div>
+                            {msg.type === 'user' && (
+                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold flex-shrink-0">
+                                    {getUserDisplayName(user)[0]}
+                                </div>
+                            )}
                         </div>
                     ))}
                     {isLoading && (
-                        <div className="flex justify-start">
-                            <div className="max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-gray-700 text-white animate-pulse">
-                                <p className="text-sm">Saathi AI is typing…</p>
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white flex-shrink-0">
+                                <Bot size={24} />
+                            </div>
+                            <div className="max-w-xl p-4 rounded-xl bg-white text-gray-800 shadow-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
+                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse [animation-delay:0.4s]"></div>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
 
-                <div className="px-6 py-4 border-t border-gray-700">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h4 className="text-sm font-medium text-gray-400 mb-3">Smart Suggestions</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {chatSuggestions.map((suggestion, index) => (
-                                    <button key={index} onClick={() => setChatInput(suggestion)} className="px-3 py-1 bg-gray-700 text-blue-300 rounded-full text-sm hover:bg-gray-600 transition-colors">
-                                        {suggestion}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-gray-400" />
-                            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="bg-gray-700 border border-gray-600 text-white rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
-                                <option value="hinglish">Hinglish</option>
-                                <option value="english">English</option>
-                                <option value="hindi">Hindi</option>
-                            </select>
+                {/* Greeting / Suggestions */}
+                {chatMessages.length === 1 && chatMessages[0].id === 'greeting-initial' && (
+                     <div className="px-6 pb-6 flex items-center gap-4">
+                        <p className="text-sm text-gray-600 font-medium flex-shrink-0">Suggestions:</p>
+                        <div className="flex-1 flex gap-2 overflow-x-auto pb-2">
+                            {chatSuggestions.map(s => (
+                                <button
+                                    key={s}
+                                    onClick={() => handleSuggestionClick(s)}
+                                    className="p-2 px-3 bg-white text-gray-700 rounded-lg text-sm text-left border border-gray-200 hover:bg-gray-200 transition whitespace-nowrap"
+                                >
+                                    {s}
+                                </button>
+                            ))}
                         </div>
                     </div>
-                </div>
-
-                <div className="p-6 border-t border-gray-700">
-                    <div className={`flex gap-3 ${imagePreview ? 'items-end' : 'items-center'}`}>
-                        <div className="flex-1">
-                            {imagePreview && (
-                                <div className="relative inline-block mb-2">
-                                    <img src={imagePreview} alt="Selected preview" className="h-20 w-20 object-cover rounded-lg border border-gray-600"/>
-                                    <button onClick={handleRemoveImage} className="absolute top-0 right-0 transform -translate-y-1/2 translate-x-1/2 bg-gray-700 hover:bg-gray-600 text-white rounded-full p-0.5">
-                                        <XCircle className="w-5 h-5"/>
-                                    </button>
-                                </div>
-                            )}
-                            <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                placeholder="Type your message..." className="w-full px-4 py-3 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white"/>
+                )}
+                
+                {/* Chat Input */}
+                <div className="p-4 border-t border-gray-200 bg-white">
+                    {imagePreview && (
+                        <div className="relative w-24 h-24 mb-2">
+                            <img src={imagePreview} alt="Selected" className="w-full h-full object-cover rounded-lg" />
+                            <button
+                                onClick={handleRemoveImage}
+                                className="absolute -top-2 -right-2 bg-gray-700 text-white rounded-full p-1"
+                            >
+                                <XCircle size={20} />
+                            </button>
                         </div>
+                    )}
+                    <div className="relative flex items-center">
+                        <button onClick={() => fileInputRef.current.click()} className="p-2 text-gray-500 hover:text-indigo-600">
+                            <Camera size={24} />
+                        </button>
                         <input
-                            type="file"
                             ref={fileInputRef}
-                            onChange={handleImageSelect}
+                            type="file"
                             accept="image/*"
+                            onChange={handleImageSelect}
                             className="hidden"
                         />
-                        <button onClick={handleListen} className={`p-3 rounded-lg transition-colors ${isListening ? 'bg-red-600' : 'bg-gray-700 hover:bg-gray-600'}`}>
-                            <Mic className="w-5 h-5 text-gray-300" />
+                        <button onClick={handleListen} className={`p-2 ${isListening ? 'text-red-500' : 'text-gray-500 hover:text-indigo-600'}`}>
+                            <Mic size={24} />
                         </button>
-                        <button onClick={() => fileInputRef.current && fileInputRef.current.click()} className="p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors" disabled={isListening}>
-                            <Camera className="w-5 h-5 text-gray-300" />
-                        </button>
-                        <button onClick={handleSendMessage} className="p-3 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors" disabled={isListening}>
-                            <Send className="w-5 h-5 text-white" />
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey ? (e.preventDefault(), handleSendMessage()) : null}
+                            placeholder="Type your message, or ask about a product image..."
+                            className="w-full p-3 pl-4 bg-gray-100 border border-transparent text-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                            disabled={isLoading}
+                        />
+                        <button
+                            onClick={handleSendMessage}
+                            disabled={(!chatInput.trim() && !selectedImage) || isLoading}
+                            className="ml-3 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Send size={20} />
                         </button>
                     </div>
                 </div>

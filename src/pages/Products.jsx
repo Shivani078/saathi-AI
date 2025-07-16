@@ -103,7 +103,7 @@ const Products = ({ user }) => {
     if (sort === "date") filtered = [...filtered].sort((a, b) => new Date(b.$createdAt) - new Date(a.$createdAt));
 
     if (loading) return (
-        <div className="min-h-screen bg-[#1e293b] text-white flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 text-gray-800 flex items-center justify-center">
             <div className="text-center">
                 <p>Loading products...</p>
             </div>
@@ -111,28 +111,28 @@ const Products = ({ user }) => {
     );
     
     if (!user) return (
-        <div className="min-h-screen bg-[#1e293b] text-white flex items-center justify-center p-4">
-            <div className="text-center bg-slate-800 p-8 rounded-lg shadow-xl">
+        <div className="min-h-screen bg-gray-50 text-gray-800 flex items-center justify-center p-4">
+            <div className="text-center bg-white p-8 rounded-lg shadow-xl">
                 <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
                 <h3 className="mt-4 text-lg font-medium">Authentication Required</h3>
-                <p className="mt-2 text-sm text-gray-400">Please login to view your products.</p>
+                <p className="mt-2 text-sm text-gray-500">Please login to view your products.</p>
             </div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-[#1e293b] p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                     <div className="flex items-center gap-4">
                         <button 
                             onClick={() => navigate('/')} 
-                            className="p-2 bg-slate-700 rounded-full text-white hover:bg-slate-600 transition"
+                            className="p-2 bg-gray-200 rounded-full text-gray-700 hover:bg-gray-300 transition"
                             title="Go Back to Dashboard"
                         >
                             <ArrowLeft className="w-6 h-6" />
                         </button>
-                        <h2 className="text-3xl font-bold text-white">Your Products</h2>
+                        <h2 className="text-3xl font-bold text-gray-800">Your Products</h2>
                     </div>
                     <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
                          <button
@@ -146,12 +146,12 @@ const Products = ({ user }) => {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                             <input
                                 type="text" placeholder="Search products..." value={search} onChange={e => setSearch(e.target.value)}
-                                className="bg-slate-700 border border-slate-600 text-white p-2 pl-10 rounded-lg w-full md:w-64 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                                className="bg-white border border-gray-300 text-gray-800 p-2 pl-10 rounded-lg w-full md:w-64 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                             />
                         </div>
                         <div className="relative w-full md:w-auto">
                             <ListFilter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                             <select value={filter} onChange={e => setFilter(e.target.value)} className="bg-slate-700 border border-slate-600 text-white p-2 pl-10 rounded-lg appearance-none w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                             <select value={filter} onChange={e => setFilter(e.target.value)} className="bg-white border border-gray-300 text-gray-800 p-2 pl-10 rounded-lg appearance-none w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
                                 <option value="all">All Stocks</option>
                                 <option value="low">Low Stock</option>
                                 <option value="out">Out of Stock</option>
@@ -159,7 +159,7 @@ const Products = ({ user }) => {
                         </div>
                         <div className="relative w-full md:w-auto">
                             <ArrowDownUp className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                             <select value={sort} onChange={e => setSort(e.target.value)} className="bg-slate-700 border border-slate-600 text-white p-2 pl-10 rounded-lg appearance-none w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
+                             <select value={sort} onChange={e => setSort(e.target.value)} className="bg-white border border-gray-300 text-gray-800 p-2 pl-10 rounded-lg appearance-none w-full focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition">
                                 <option value="date">Newest</option>
                                 <option value="price">Price</option>
                                 <option value="stock">Stock</option>
@@ -169,10 +169,10 @@ const Products = ({ user }) => {
                 </div>
 
                 {filtered.length === 0 ? (
-                    <div className="text-center py-16 bg-slate-800 rounded-lg">
-                        <Info className="mx-auto h-12 w-12 text-gray-500" />
-                        <h3 className="mt-4 text-lg font-medium text-white">No Products Found</h3>
-                        <p className="mt-2 text-sm text-gray-400">
+                    <div className="text-center py-16 bg-white rounded-lg">
+                        <Info className="mx-auto h-12 w-12 text-gray-400" />
+                        <h3 className="mt-4 text-lg font-medium text-gray-800">No Products Found</h3>
+                        <p className="mt-2 text-sm text-gray-500">
                             Your inventory is empty or no products match your filters.
                         </p>
                     </div>

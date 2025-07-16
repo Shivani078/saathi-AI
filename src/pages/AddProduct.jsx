@@ -104,7 +104,7 @@ const AddProduct = ({ user, setProducts, onBack }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#1e293b] p-4 sm:p-6 lg:p-8 flex items-center justify-center">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
             <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-2xl relative">
                  <button 
                     onClick={onBack} 
