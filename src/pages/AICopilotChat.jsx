@@ -19,7 +19,7 @@ const backendURL = import.meta.env.VITE_BACKEND_URL;
 const APPWRITE_DB_ID = import.meta.env.VITE_APPWRITE_DB_ID;
 const APPWRITE_CHAT_COLLECTION_ID = import.meta.env.VITE_APPWRITE_CHAT_COLLECTION_ID;
 
-const AICopilotChat = ({ user, getUserDisplayName }) => {
+const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
     const [chatMessages, setChatMessages] = useState([]);
     const [allUserMessages, setAllUserMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
@@ -276,6 +276,9 @@ const AICopilotChat = ({ user, getUserDisplayName }) => {
             formData.append('current_query', currentChatInput);
             formData.append('language', language);
             formData.append('history_str', JSON.stringify(historyForBackend));
+            formData.append('products_str', JSON.stringify(products || []));
+            formData.append('pincode', pincode || '');
+            
             if (imageToSend) {
                 formData.append('image', imageToSend);
             }

@@ -6,6 +6,7 @@ from chat_routes import router as chat_router
 from planner_routes import router as planner_router
 from trends_routes import router as trends_router
 from product_listing_routes import router as product_listing_router
+from dashboard_routes import router as dashboard_router
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -25,6 +26,7 @@ app.include_router(chat_router, prefix="/api/chat", tags=["AI Chat"])
 app.include_router(planner_router, prefix="/api/planner", tags=["Inventory Planner"])
 app.include_router(trends_router, prefix="/api/trends", tags=["Trends & Insights"])
 app.include_router(product_listing_router, prefix="/api/listing", tags=["Product Listing"])
+app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 
 # --- Root Endpoint for Health Check ---
 @app.get("/", tags=["Root"])

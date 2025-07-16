@@ -10,7 +10,7 @@ from PIL import Image
 import io
 
 # --- Custom Utility Import ---
-from utils import get_upcoming_festivals_for_chat
+from utils import get_rich_context
 
 # --- LangChain Imports ---
 from langchain_groq import ChatGroq
@@ -47,41 +47,7 @@ except Exception as e:
 
 
 # --- Helper Functions ---
-def get_season_and_weather():
-    """Determines the current Indian season and fetches weather from OpenWeatherMap."""
-    api_key = os.getenv("OPENWEATHER_API_KEY")
-    if not api_key:
-        return "Weather data is unavailable.", "Season data is unavailable."
-
-    # Determine season based on month
-    month = datetime.now().month
-    if month in [12, 1, 2]:
-        season = "Winter"
-    elif month in [3, 4, 5]:
-        season = "Summer"
-    elif month in [6, 7, 8, 9]:
-        season = "Monsoon"
-    else: # 10, 11
-        season = "Post-Monsoon (Autumn)"
-    
-    # Fetch weather for New Delhi, India
-    try:
-        # Note: Using lat/lon is more reliable than city name
-        lat, lon = 28.6139, 77.2090
-        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=metric"
-        response = requests.get(url)
-        response.raise_for_status() # Raise an exception for bad status codes
-        data = response.json()
-        
-        description = data['weather'][0]['description']
-        temp = data['main']['temp']
-        weather_summary = f"Current weather in New Delhi: {description} with a temperature of {temp}°C."
-        return season, weather_summary
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching weather data: {e}")
-        return season, "Could not retrieve weather data."
-    except KeyError:
-        return season, "Could not parse weather data."
+# This has been moved to utils.py and improved.
 
 
 # --- Pydantic Models for Chat ---
@@ -101,14 +67,24 @@ async def chat_with_copilot_ai(
     current_query: str = Form(...),
     language: str = Form("english"),
     history_str: str = Form("[]"), # History as a JSON string
+    products_str: str = Form("[]"), # Products as a JSON string
+    pincode: str = Form(""), # User's pincode
     image: Optional[UploadFile] = File(None)
 ):
     
     # --- System Prompt and Context Setup ---
     now = datetime.now()
     current_date_str = now.strftime("%A, %B %d, %Y")
-    upcoming_festivals_str = get_upcoming_festivals_for_chat()
-    current_season, current_weather = get_season_and_weather()
+    
+    # Deserialize products from JSON string
+    import json
+    try:
+        products = json.loads(products_str)
+    except json.JSONDecodeError:
+        products = []
+        
+    # Get all context from the new utility function
+    rich_context = get_rich_context(products=products, pincode=pincode)
     
     if language.lower() == 'hindi':
         language_instruction = "You must respond only in Hindi."
@@ -119,21 +95,21 @@ async def chat_with_copilot_ai(
 
     system_prompt = f"""
     You are 'Seller Saathi', a friendly and expert AI assistant for Meesho sellers in India.
-    **Your Instructions**
-    1.  **Current Date**: The current date is **{current_date_str}**.
-    2.  **Current Season & Weather**: It is currently **{current_season}** in India. {current_weather}
-    3.  **Upcoming Festivals**: Here are the upcoming Indian festivals for the next 90 days:
-        {upcoming_festivals_str}
-    4.  **Language**: {language_instruction}
-    5.  **Persona**: Be friendly, conversational, and encouraging.
-    6.  **Goal**: Give simple, actionable advice about local festivals, cultural events, and weather patterns across India to help sellers.
-    7.  **Conciseness**: Keep your answers short and easy to understand for a non-technical user.
-    8.  If the user provides an image, analyze it in the context of their query. For example, if they ask to create a product listing, use the image.
-    **How to Answer**
-    1. Use Current Date, Current Season & Weather, Upcoming Festivals as "ONLY CONTEXT" to answer user's query.
-    2. Ask clarifying question to better assist.
-    3. You never guess, assume, or provide information that isn't directly stated in "ONLY CONTEXT".
-    4. If you do not know, state that you are unable to answer the question politely.
+    Your persona is helpful, encouraging, and an expert in Indian e-commerce.
+    
+    **Current Date**: The current date is **{current_date_str}**.
+    
+    **CRITICAL INSTRUCTIONS**
+    1.  **Primary Context**: Your main source of truth is the detailed context block provided below. Use the product inventory, local weather, and upcoming festivals to give highly relevant and specific advice.
+    2.  **Language**: {language_instruction}
+    3.  **Goal**: Your goal is to give simple, actionable advice to help sellers succeed. Connect your answers to the provided context.
+        - If the user asks about what to stock, look at the upcoming festivals and weather.
+        - If the user asks for marketing ideas, suggest promoting products relevant to the current season or events.
+    4.  **Conciseness**: Keep your answers short and easy to understand for a non-technical user.
+    5.  **Images**: If the user provides an image, analyze it in the context of their query. For example, if they ask to create a product listing, use the image to inform the description.
+    6.  **No Guessing**: If you cannot answer using the provided context, politely say that you don't have enough information and ask a clarifying question.
+    
+    {rich_context}
     """
 
     # --- Model Invocation ---
