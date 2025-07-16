@@ -29,7 +29,10 @@ const Dashboard = () => {
         { id: 3, text: 'Low stock alert: Traditional earrings', type: 'warning', time: '1 day ago' }
     ]);
     const [user, setUser] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
     const [products, setProducts] = useState([]);
+    const [aiSummary, setAiSummary] = useState(null);
+    const [isSummaryLoading, setIsSummaryLoading] = useState(true);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -91,8 +94,9 @@ const Dashboard = () => {
         }
         console.log(`Checking profile for user UID: ${currentUser.uid}`);
         try {
-            await databases.getDocument(APPWRITE_DB_ID, APPWRITE_PROFILES_COLLECTION_ID, currentUser.uid);
-            console.log("User profile found. User is not new.");
+            const profile = await databases.getDocument(APPWRITE_DB_ID, APPWRITE_PROFILES_COLLECTION_ID, currentUser.uid);
+            setUserProfile(profile);
+            console.log("User profile found and stored:", profile);
         } catch (error) {
             console.error("Error checking user profile:", error);
             if (error.code === 404) {
@@ -147,6 +151,41 @@ const Dashboard = () => {
         else if (actionLabel === 'View Local Trends') setActiveTab('trends');
     };
 
+    const fetchAiSummary = async (userProducts, userPincode) => {
+        if (!userProducts || userProducts.length === 0 || !userPincode) {
+            setIsSummaryLoading(false);
+            return;
+        }
+        setIsSummaryLoading(true);
+        try {
+            const response = await fetch(`${backendURL}/api/dashboard/summary`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    products: userProducts,
+                    pincode: userPincode
+                }),
+            });
+            if (!response.ok) throw new Error('Failed to fetch AI summary');
+            const data = await response.json();
+            setAiSummary(data);
+        } catch (error) {
+            console.error("Error fetching AI summary:", error);
+            setAiSummary(null); // Clear summary on error
+        } finally {
+            setIsSummaryLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (products.length > 0 && userProfile?.pinCode) {
+            fetchAiSummary(products, userProfile.pinCode);
+        } else if (user) {
+            // If we have a user but no products/pincode yet, don't show loading forever
+            setIsSummaryLoading(false);
+        }
+    }, [products, userProfile]);
+
     const handleBackToDashboard = () => {
         setActiveTab('dashboard');
     };
@@ -184,33 +223,47 @@ const Dashboard = () => {
                     <Zap className="w-6 h-6" />
                     <h3 className="text-xl font-bold">AI Weekly Summary</h3>
                 </div>
-                <div className="bg-white/20 rounded-lg p-4 mb-4">
-                    <h4 className="font-semibold mb-2">📊 This Week's Focus:</h4>
-                    <p className="text-sm">{aiWeeklySummary.focus}</p>
-                </div>
-                <div className="grid md:grid-cols-3 gap-4 text-sm">
-                    <div className="bg-white/20 rounded-lg p-4">
-                        <div className="flex items-center gap-2 font-semibold mb-2">
-                            <TrendingUp className="w-5 h-5 text-green-300" />
-                            <span>Opportunity</span>
-                        </div>
-                        <p>{aiWeeklySummary.opportunity}</p>
+                {isSummaryLoading ? (
+                    <div className="space-y-3 animate-pulse">
+                        <div className="h-4 bg-white/30 rounded-md w-3/4"></div>
+                        <div className="h-4 bg-white/30 rounded-md w-1/2"></div>
+                        <div className="h-4 bg-white/30 rounded-md w-5/6"></div>
                     </div>
-                    <div className="bg-white/20 rounded-lg p-4">
-                        <div className="flex items-center gap-2 font-semibold mb-2">
-                            <AlertTriangle className="w-5 h-5 text-yellow-300" />
-                            <span>Caution</span>
+                ) : aiSummary ? (
+                    <>
+                        <div className="bg-white/20 rounded-lg p-4 mb-4">
+                            <h4 className="font-semibold mb-2">📊 This Week's Focus:</h4>
+                            <p className="text-sm">{aiSummary.focus}</p>
                         </div>
-                        <p>{aiWeeklySummary.caution}</p>
-                    </div>
-                    <div className="bg-white/20 rounded-lg p-4">
-                        <div className="flex items-center gap-2 font-semibold mb-2">
-                            <Target className="w-5 h-5 text-red-300" />
-                            <span>Action</span>
+                        <div className="grid md:grid-cols-3 gap-4 text-sm">
+                            <div className="bg-white/20 rounded-lg p-4">
+                                <div className="flex items-center gap-2 font-semibold mb-2">
+                                    <TrendingUp className="w-5 h-5 text-green-300" />
+                                    <span>Opportunity</span>
+                                </div>
+                                <p>{aiSummary.opportunity}</p>
+                            </div>
+                            <div className="bg-white/20 rounded-lg p-4">
+                                <div className="flex items-center gap-2 font-semibold mb-2">
+                                    <AlertTriangle className="w-5 h-5 text-yellow-300" />
+                                    <span>Caution</span>
+                                </div>
+                                <p>{aiSummary.caution}</p>
+                            </div>
+                            <div className="bg-white/20 rounded-lg p-4">
+                                <div className="flex items-center gap-2 font-semibold mb-2">
+                                    <Target className="w-5 h-5 text-red-300" />
+                                    <span>Action</span>
+                                </div>
+                                <p>{aiSummary.action}</p>
+                            </div>
                         </div>
-                        <p>{aiWeeklySummary.action}</p>
+                    </>
+                ) : (
+                    <div className="text-center py-4 bg-white/20 rounded-lg">
+                        <p className="text-sm">AI summary could not be generated. Please ensure your profile has a pincode and you have products in your inventory.</p>
                     </div>
-                </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -399,7 +452,13 @@ const Dashboard = () => {
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard': return renderDashboard();
-            case 'ai-chat': return <AICopilotChat user={user} getUserDisplayName={getUserDisplayName} />;
+            case 'ai-chat':
+                return <AICopilotChat 
+                    user={user} 
+                    getUserDisplayName={getUserDisplayName}
+                    products={products}
+                    pincode={userProfile?.pinCode}
+                />;
             case 'inventory': return <InventoryPlanner />;
             case 'listing': return <ProductListingGenerator />;
             case 'trends': return <TrendsInsightsPage />;
@@ -423,6 +482,14 @@ const Dashboard = () => {
                 );
         }
     };
+
+    useEffect(() => {
+        if (user) {
+            fetchUserProducts(user);
+        } else {
+            setProducts([]);
+        }
+    }, [user]);
 
     return (
         <div className="h-screen bg-[#1e293b] flex">
