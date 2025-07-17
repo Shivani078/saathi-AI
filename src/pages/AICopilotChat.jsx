@@ -306,21 +306,11 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
             }
         } catch (error) {
             console.error("Error fetching AI response from backend:", error);
-            // Only add error if last message is not a bot reply
-            setChatMessages(prev => {
-                if (prev.length === 0 || prev[prev.length - 1].type !== 'bot') {
-                    return [
-                        ...prev,
-                        {
-                            id: Date.now() + 1,
-                            type: 'bot',
-                            content: `Oops! Something went wrong. ${error.message}`,
-                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        }
-                    ];
-                }
-                return prev;
-            });
+            const errorResponse = {
+                id: Date.now() + 1, type: 'bot', content: `Oops! Something went wrong. ${error.message}`,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            setChatMessages(prev => [...prev, errorResponse]);
         } finally {
             setIsLoading(false);
         }
