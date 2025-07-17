@@ -232,8 +232,7 @@ const OrdersReturnsPage = () => {
                             <p className="text-sm text-gray-600">Total Returns</p>
                             <p className="text-2xl font-bold text-gray-900">
                                 {entries.reduce((sum, entry) => {
-                                    // If you store returns count per entry, use that field; else, count entries
-                                    // Example: sum + Number(entry.returns || 0)
+
                                     return sum + 1;
                                 }, 0)}
                             </p>

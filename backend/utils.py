@@ -1,7 +1,8 @@
 import json
 import calendar
 from datetime import datetime, timedelta
-from indian_festivals.festival import IndianFestivals
+from custom_packages.indian_festivals.festivals import IndianFestivals
+
 import os
 import requests
 
