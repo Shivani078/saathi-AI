@@ -36,7 +36,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
     const fileInputRef = useRef(null);
     const recognitionRef = useRef(null);
     const langDropdownRef = useRef(null);
-    
+
     const chatSuggestions = [
         "What to stock this month?",
         "Make listing for this product photo",
@@ -176,7 +176,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
                 }
                 setChatInput(finalTranscript + interimTranscript);
             };
-            
+
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
                 setIsListening(false);
@@ -225,7 +225,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
     const handleRemoveImage = () => {
         setSelectedImage(null);
         setImagePreview(null);
-        if(fileInputRef.current) {
+        if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
     };
@@ -240,15 +240,15 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
         if ((!chatInput.trim() && !selectedImage) || isLoading) return;
         const currentChatInput = chatInput;
         const imageToSend = selectedImage; // Capture the image to send
-        
+
         // --- Reset UI immediately ---
         setChatInput('');
         setSelectedImage(null);
         setImagePreview(null);
-        if(fileInputRef.current) {
+        if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
-        
+
         const sessionId = currentSessionId || ID.unique();
         if (!currentSessionId) setCurrentSessionId(sessionId);
 
@@ -266,7 +266,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
             role: msg.type === 'bot' ? 'model' : 'user',
             parts: [{ text: msg.content }]
         }));
-        
+
         const newViewMessages = chatMessages.some(m => m.id.startsWith('greeting')) ? [userMessage] : [...chatMessages, userMessage];
         setChatMessages(newViewMessages);
         setIsLoading(true);
@@ -278,12 +278,12 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
             formData.append('history_str', JSON.stringify(historyForBackend));
             formData.append('products_str', JSON.stringify(products || []));
             formData.append('pincode', pincode || '');
-            
+
             if (imageToSend) {
                 formData.append('image', imageToSend);
             }
 
-           const response = await fetch(`${backendURL.replace(/\/$/, '')}/api/chat`, {
+            const response = await fetch(`${backendURL.replace(/\/$/, '')}/api/chat`, {
                 method: 'POST',
                 body: formData // No 'Content-Type' header, browser sets it for FormData
             });
@@ -306,11 +306,21 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
             }
         } catch (error) {
             console.error("Error fetching AI response from backend:", error);
-            const errorResponse = {
-                id: Date.now() + 1, type: 'bot', content: `Oops! Something went wrong. ${error.message}`,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-            setChatMessages(prev => [...prev, errorResponse]);
+            // Only add error if last message is not a bot reply
+            setChatMessages(prev => {
+                if (prev.length === 0 || prev[prev.length - 1].type !== 'bot') {
+                    return [
+                        ...prev,
+                        {
+                            id: Date.now() + 1,
+                            type: 'bot',
+                            content: `Oops! Something went wrong. ${error.message}`,
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        }
+                    ];
+                }
+                return prev;
+            });
         } finally {
             setIsLoading(false);
         }
@@ -392,7 +402,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
                         <h1 className="text-xl font-bold text-gray-800">AI Copilot Chat</h1>
                     </div>
                     <div className="relative" ref={langDropdownRef}>
-                         <button
+                        <button
                             onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
                             className="flex items-center gap-2 bg-gray-100 border border-gray-300 text-gray-800 p-2 pl-4 pr-3 rounded-lg focus:ring-2 focus:ring-indigo-500"
                         >
@@ -404,32 +414,32 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
                             <ul className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                                 <li>
                                     <a onClick={() => { setLanguage('english'); setIsLangDropdownOpen(false); }}
-                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">English</a>
+                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">English</a>
                                 </li>
                                 <li>
                                     <a onClick={() => { setLanguage('hindi'); setIsLangDropdownOpen(false); }}
-                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Hindi</a>
+                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Hindi</a>
                                 </li>
                                 <li>
                                     <a onClick={() => { setLanguage('hinglish'); setIsLangDropdownOpen(false); }}
-                                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Hinglish</a>
+                                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Hinglish</a>
                                 </li>
                             </ul>
                         )}
                     </div>
                 </header>
-                
+
                 {/* Chat Messages */}
-                 <div id="chat-container" className="flex-1 p-6 overflow-y-auto space-y-6">
+                <div id="chat-container" className="flex-1 p-6 overflow-y-auto space-y-6">
                     {chatMessages.map((msg, index) => (
                         <div key={msg.id || index} className={`flex items-start gap-4 ${msg.type === 'user' ? 'justify-end' : ''}`}>
-                             {msg.type === 'bot' && (
+                            {msg.type === 'bot' && (
                                 <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white flex-shrink-0">
                                     <Bot size={24} />
                                 </div>
                             )}
                             <div className={`max-w-xl p-4 rounded-xl ${msg.type === 'user' ? 'bg-indigo-500 text-white' : 'bg-white text-gray-800 shadow-sm'}`}>
-                                {msg.image && <img src={msg.image} alt="uploaded content" className="rounded-lg mb-2 max-w-xs"/>}
+                                {msg.image && <img src={msg.image} alt="uploaded content" className="rounded-lg mb-2 max-w-xs" />}
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
                                 <div className="text-xs mt-2 opacity-70 text-right">{msg.timestamp}</div>
                             </div>
@@ -458,7 +468,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
 
                 {/* Greeting / Suggestions */}
                 {chatMessages.length === 1 && chatMessages[0].id === 'greeting-initial' && (
-                     <div className="px-6 pb-6 flex items-center gap-4">
+                    <div className="px-6 pb-6 flex items-center gap-4">
                         <p className="text-sm text-gray-600 font-medium flex-shrink-0">Suggestions:</p>
                         <div className="flex-1 flex gap-2 overflow-x-auto pb-2">
                             {chatSuggestions.map(s => (
@@ -473,7 +483,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
                         </div>
                     </div>
                 )}
-                
+
                 {/* Chat Input */}
                 <div className="p-4 border-t border-gray-200 bg-white">
                     {imagePreview && (
