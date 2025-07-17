@@ -283,7 +283,7 @@ const AICopilotChat = ({ user, getUserDisplayName, products, pincode }) => {
                 formData.append('image', imageToSend);
             }
 
-            const response = await fetch(`${backendURL}/api/chat`, {
+           const response = await fetch(`${backendURL.replace(/\/$/, '')}/api/chat`, {
                 method: 'POST',
                 body: formData // No 'Content-Type' header, browser sets it for FormData
             });
