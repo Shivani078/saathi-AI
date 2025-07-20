@@ -30,7 +30,7 @@ const ProductListingGenerator = () => {
     const langDropdownRef = useRef(null);
 
     const indianLanguages = {
-        en: 'English', as: 'Assamese', bn: 'Bengali', gu: 'Gujarati', 
+        en: 'English', as: 'Assamese', bn: 'Bengali', gu: 'Gujarati',
         hi: 'Hindi', kn: 'Kannada', ml: 'Malayalam', mr: 'Marathi',
         pa: 'Punjabi', ta: 'Tamil', te: 'Telugu', ur: 'Urdu'
     };
@@ -47,6 +47,10 @@ const ProductListingGenerator = () => {
         'Beauty & Personal Care', 'Automotive', 'Food & Beverages', 'Health',
         'Jewelry', 'Pet Supplies', 'Office Supplies', 'Music', 'Art & Crafts'
     ];
+
+    const [showSeo, setShowSeo] = useState(true);
+    const [showWhatsapp, setShowWhatsapp] = useState(false);
+    const [showConversational, setShowConversational] = useState(false);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -98,7 +102,7 @@ const ProductListingGenerator = () => {
         formData.append('category', productData.category || 'General');
         // formData.append('dialect', dialect); // Removed
         formData.append('content_options_str', JSON.stringify(contentOptions));
-        
+
         if (productData.image) {
             formData.append('image', productData.image);
         }
@@ -125,7 +129,7 @@ const ProductListingGenerator = () => {
             setIsGenerating(false);
         }
     };
-    
+
     const improveListing = async () => {
         if (!generatedListing) return;
 
@@ -148,12 +152,12 @@ const ProductListingGenerator = () => {
             setIsImproving(false);
         }
     };
-    
+
     const translateListing = async (languageCode) => {
         if (!generatedListing || languageCode === 'en' || translations[languageCode] || translatingLanguage) {
             return;
         }
-        
+
         setTranslatingLanguage(languageCode);
 
         try {
@@ -179,7 +183,7 @@ const ProductListingGenerator = () => {
     const currentListing = translations[selectedLanguage] || generatedListing;
 
     const copyToClipboard = (text, field) => {
-        if(typeof text !== 'string') {
+        if (typeof text !== 'string') {
             text = JSON.stringify(text, null, 2);
         }
         navigator.clipboard.writeText(text);
@@ -282,7 +286,7 @@ const ProductListingGenerator = () => {
                                 ))}
                             </select>
                         </div>
-                        
+
                         {/* Content Options */}
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -290,15 +294,15 @@ const ProductListingGenerator = () => {
                             </label>
                             <div className="space-y-2">
                                 <label className="flex items-center">
-                                    <input type="checkbox" checked={contentOptions.seo} onChange={() => setContentOptions({...contentOptions, seo: !contentOptions.seo})} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                                    <input type="checkbox" checked={contentOptions.seo} onChange={() => setContentOptions({ ...contentOptions, seo: !contentOptions.seo })} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
                                     <span className="ml-2 text-gray-700">SEO Title & Description</span>
                                 </label>
                                 <label className="flex items-center">
-                                    <input type="checkbox" checked={contentOptions.whatsapp} onChange={() => setContentOptions({...contentOptions, whatsapp: !contentOptions.whatsapp})} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                                    <input type="checkbox" checked={contentOptions.whatsapp} onChange={() => setContentOptions({ ...contentOptions, whatsapp: !contentOptions.whatsapp })} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
                                     <span className="ml-2 text-gray-700">WhatsApp-Friendly Caption</span>
                                 </label>
                                 <label className="flex items-center">
-                                    <input type="checkbox" checked={contentOptions.conversational} onChange={() => setContentOptions({...contentOptions, conversational: !contentOptions.conversational})} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
+                                    <input type="checkbox" checked={contentOptions.conversational} onChange={() => setContentOptions({ ...contentOptions, conversational: !contentOptions.conversational })} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
                                     <span className="ml-2 text-gray-700">Conversational Search Phrases</span>
                                 </label>
                             </div>
@@ -378,13 +382,51 @@ const ProductListingGenerator = () => {
                                             </ul>
                                         )}
                                     </div>
-                                     <button onClick={improveListing} disabled={isImproving || !!translatingLanguage} className="bg-orange-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition-colors disabled:opacity-50">
+                                    <button onClick={improveListing} disabled={isImproving || !!translatingLanguage} className="bg-orange-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-600 transition-colors disabled:opacity-50">
                                         {isImproving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                                         Improve Content
                                     </button>
                                 </div>
 
-                                {currentListing.seo_content && (
+                                {/* Section toggle buttons */}
+                                <div className="flex gap-4 mb-4">
+                                    <button
+                                        className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors ${showSeo ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                                        onClick={() => {
+                                            setShowSeo(true);
+                                            setShowWhatsapp(false);
+                                            setShowConversational(false);
+                                        }}
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                        SEO Content
+                                    </button>
+                                    <button
+                                        className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors ${showWhatsapp ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                                        onClick={() => {
+                                            setShowSeo(false);
+                                            setShowWhatsapp(true);
+                                            setShowConversational(false);
+                                        }}
+                                    >
+                                        <MessageSquare className="w-4 h-4" />
+                                        WhatsApp Content
+                                    </button>
+                                    <button
+                                        className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-colors ${showConversational ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                                        onClick={() => {
+                                            setShowSeo(false);
+                                            setShowWhatsapp(false);
+                                            setShowConversational(true);
+                                        }}
+                                    >
+                                        <Search className="w-4 h-4" />
+                                        Conversational
+                                    </button>
+                                </div>
+
+                                {/* Render only the selected section */}
+                                {showSeo && currentListing.seo_content && (
                                     <GeneratedContentDisplay
                                         title="SEO Content"
                                         icon={FileText}
@@ -403,7 +445,7 @@ const ProductListingGenerator = () => {
                                                         {currentListing.seo_content.tags.map(tag => <span key={tag} className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">{tag}</span>)}
                                                     </div>
                                                 </div>
-                                                 <div>
+                                                <div>
                                                     <h4 className="font-semibold text-sm mb-1">Keywords:</h4>
                                                     <div className="flex flex-wrap gap-2">
                                                         {currentListing.seo_content.keywords.map(kw => <span key={kw} className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-sm">{kw}</span>)}
@@ -413,8 +455,8 @@ const ProductListingGenerator = () => {
                                         }
                                     />
                                 )}
-                                {currentListing.whatsapp_content && (
-                                     <GeneratedContentDisplay
+                                {showWhatsapp && currentListing.whatsapp_content && (
+                                    <GeneratedContentDisplay
                                         title="WhatsApp Content"
                                         icon={MessageSquare}
                                         onCopy={() => copyToClipboard(
@@ -430,8 +472,8 @@ const ProductListingGenerator = () => {
                                         }
                                     />
                                 )}
-                                {currentListing.conversational_content && (
-                                     <GeneratedContentDisplay
+                                {showConversational && currentListing.conversational_content && (
+                                    <GeneratedContentDisplay
                                         title="Conversational Search Phrases"
                                         icon={Search}
                                         onCopy={() => copyToClipboard(currentListing.conversational_content.search_phrases.join('\n'), 'conversational')}
