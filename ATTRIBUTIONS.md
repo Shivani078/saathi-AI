@@ -133,19 +133,19 @@ This project uses the following third-party libraries and APIs:
   _(Note: Link may be broken as of [July 2025])_
 
 
-### 2. React DOM
+### 22. React DOM
 - **Name & Version**: react-dom v18.2.0
 - **License**: MIT License
 - **Role**: DOM rendering for React components
 - **Source**: https://github.com/facebook/react
 
-### 3. Vite
+### 23. Vite
 - **Name & Version**: vite v5.2.4
 - **License**: MIT License
 - **Role**: Frontend build tool for fast dev and optimized production builds
 - **Source**: https://github.com/vitejs/vite
 
-### 4. Appwrite (JavaScript SDK)
+### 24. Appwrite (JavaScript SDK)
 - **Name & Version**: appwrite v13.0.1
 - **License**: BSD-3-Clause
 - **Role**: Connects frontend to Appwrite backend for auth, DB, storage, etc.
