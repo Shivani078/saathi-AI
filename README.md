@@ -15,15 +15,18 @@ Saathi AI is a comprehensive, AI-powered application designed to streamline and 
 
 - **Firebase Authentication:** To ensure secure and reliable user management, we integrated **Firebase Authentication**, which provides a robust and easy-to-implement solution for handling user sign-up, login, and session management.
 
-- **Appwrite:** We use **Appwrite** for its backend services, including database and storage, to manage product information and user data.
+- **Appwrite:** We use **Appwrite** as a powerful backend-as-a-service for managing our database (products, orders) and storage, providing a secure and scalable foundation for our data.
+
+By combining these technologies, we've created a powerful and responsive application that delivers a seamless user experience while handling complex data processing and AI-driven tasks on the backend.
 
 ## ✨ Features
 
-- **🤖 AI Copilot Chat:** Get instant answers to your questions, from inventory management to sales analytics.
-- **📈 Trends & Insights:** Stay ahead of the curve with real-time analysis of market trends and consumer behavior.
-- **📦 Inventory Planner:** Forecast demand, manage stock levels, and avoid stockouts with our intelligent inventory planner.
-- **📝 Product Listing:** Quickly generate and optimize product listings with AI-powered suggestions.
-- **📊 Interactive Dashboard:** Visualize your sales data, track key metrics, and gain actionable insights through an intuitive dashboard.
+- **🤖 AI Copilot Chat:** Get instant, context-aware answers to questions about your inventory, sales, and market trends.
+- **📝 Interactive Product Lister:** Generate SEO-optimized product titles, descriptions, and tags with AI. Refine the content with interactive feedback to get the perfect result.
+- **📊 Dynamic Dashboard:** Get a real-time overview of your business with dynamic cards for product details, top-selling items, and live purchase and sales order tracking.
+- **📈 AI-Powered Returns Analyzer:** Identify patterns in your sales returns with an AI-powered analysis tool that provides actionable insights to help you reduce your return rate.
+- **📦 Inventory Planner:** Forecast demand and manage stock levels to avoid stockouts.
+- **💡 Trends & Insights:** Stay ahead of the curve with real-time analysis of market trends.
 
 ## 💻 Tech Stack
 
@@ -74,14 +77,17 @@ To get a local copy up and running, follow these simple steps.
     VITE_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
     VITE_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
     VITE_FIREBASE_APP_ID=your_firebase_app_id
+
+    VITE_APPWRITE_API_KEY=your_appwrite_api_key
     VITE_APPWRITE_ENDPOINT=your_appwrite_endpoint
     VITE_APPWRITE_PROJECT_ID=your_appwrite_project_id
     VITE_APPWRITE_DB_ID=your_appwrite_db_id
     VITE_APPWRITE_COLLECTION_ID=your_appwrite_collection_id
     VITE_APPWRITE_BUCKET_ID=your_appwrite_bucket_id
-    VITE_APPWRITE_ORDERSUM_COLLECTION_ID=your_appwrite_ordersum_collection_id
     VITE_APPWRITE_PROFILES_COLLECTION_ID=your_appwrite_profiles_collection_id
     VITE_APPWRITE_CHAT_COLLECTION_ID=your_appwrite_chat_collection_id
+    VITE_APPWRITE_PURCHASE_ORDERS_ID=your_appwrite_purchase_orders_id
+    VITE_APPWRITE_SALES_ORDERS_ID=your_appwrite_sales_orders_id
     VITE_BACKEND_URL=your_backend_url
     ```
 4. **Run the development server:**
@@ -124,7 +130,7 @@ The backend exposes the following API endpoints:
 - **/api/trends:** Provides real-time market trends and insights.
 - **/api/listing:** Manages product listing generation and optimization.
 - **/api/dashboard:** Retrieves and processes data for the dashboard.
-- **/:** A simple health check endpoint.
+- **/api/returns/analyze:** Analyzes return data to provide AI-powered insights.
 
 ## 🔮 Challenges and Future Enhancements
 
