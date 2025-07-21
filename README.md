@@ -61,7 +61,7 @@ To get a local copy up and running, follow these simple steps.
 
 1. **Clone the repository:**
    ```sh
-   git clone https://github.com/Shivani078/bud.git
+   git clone https://github.com/Shivani078/saathi-AI.git
    ```
 
 2. **Install dependencies:**
